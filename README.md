@@ -1,1 +1,3 @@
-# workplace-checker
+# Workplace Checker
+
+Checks if someones employer is legitimate and returns possible company URL, or at least it will, when it's done...
