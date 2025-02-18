@@ -1,8 +1,12 @@
 import google.generativeai as genai
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 company = input("Enter Company name: ")
 
-genai.configure(api_key="")
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 model = genai.GenerativeModel('gemini-1.5-flash', generation_config={
     "response_mime_type":"application/json",
