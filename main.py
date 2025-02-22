@@ -4,20 +4,38 @@ import os
 import json
 from googlesearch import search
 
-load_dotenv()
+load_dotenv() # Gets API key from .env file
 
 company = input("Enter Company name: ")
 
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+genai.configure(api_key=os.getenv("GEMINI_API_KEY")) # Configures the API key
 
 model = genai.GenerativeModel('gemini-1.5-flash', generation_config={
-    "response_mime_type":"application/json",
-    "temperature": 0
+    "response_mime_type":"application/json", # Ensure the response is in JSON format
+    "temperature": 0 # Makes the response return the same thing every time given the same input
 })
 
+ammount_check = model.generate_content(
+    f"You are given a selection of companies, tell me how many there are. Return as a JSON object with the following keys: {{'count', int., 'names': [string]}} Company Selection: {company}"  
+)
+
+ammount_check = json.loads(ammount_check.text)
+
+print(ammount_check)
+
+company_search = [] # Searches for company on Google. Returns first 2 results
+for i in ammount_check["names"]:
+    company_search.append(list(search(i, tld="com", num=2, stop=2, pause=2)))
+
+# prompt
 response = model.generate_content(
     f"""
         Process the input company name to return a canonical corporate entity name and a verification status. 
+
+        Here is some search results for the input company name:
+        {company_search}
+        If any of the search results line up with the given company name, it is likely a valid corporate entity and needVerify is True.
+        Do keep in mind that the input name may not be a valid corporate entity, and search results may return things related to the subject of a job where needVerify is false
 
         ### Rules:
         1. **Correct any spelling errors** in the input name.
@@ -70,25 +88,29 @@ response = model.generate_content(
 
 print(response.text)
 
+
+# Parse the response
 data = json.loads(response.text)
 
 companies = data.get("companies", [])
 
-
+# Loop through the companies and check if needVerify is True
 for item in companies:
+    company_name = item.get("name")
 
     if item.get("needVerify") == True:
         print("Searching for company on Google")
 
-        search_results = list(search(company, tld="com", num=10, stop=10, pause=2))
+        # Search for the company on Google
+        search_results = list(search(company_name, tld="com", num=10, stop=10, pause=2))
         print(search_results)
 
-        os.remove(".google-cookie")
+        os.remove(".google-cookie") # Remove the cookie file
 
         link_response = model.generate_content(
             f'''
                 Earlier, you were asked to verify a company name.
-                That company name is: {company}
+                That company name is: {company_name}
 
                 I searched for the company on Google and found the following results:
                 {search_results}
@@ -107,4 +129,12 @@ for item in companies:
 
                 '''
             )
-        print(link_response.text)
+        
+        # Parse the response
+        final_data = json.loads(link_response.text)
+        print(f"\nComapny: {company_name}. Verification status: {final_data['isVerified']}. Url: {final_data['url']}") 
+
+    else:
+        print(f"\nComapny: {company_name}. Verification deemed N/A.")
+
+
